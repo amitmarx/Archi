@@ -4,7 +4,7 @@ int getOffset(int argc, char **argv){
     char* enc = NULL;
     int j;
     for(j=0;j<argc;j++){
-        if(argv[j][0]=='-'||argv[j][0]=='+')
+        if((strcmp(argv[j],"-i")!=0 && argv[j][0]=='-')||argv[j][0]=='+')
             enc = argv[j];
     }
     if(enc!=NULL){
