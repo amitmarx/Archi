@@ -3,20 +3,20 @@
 #include <stdbool.h>
 
 typedef struct virus virus;
-void initVirus(virus* v, unsigned short length, char* name, char* sig);
+virus * initVirus(unsigned short length, char* name);
 void PrintHex(char *buffer, int length);
 void PrintVirus(virus * v);
 struct virus
 {
     unsigned short length;
     char name[16];
-    char * signature;
+    char signature[];
 };
 
 int main(int argc, char **argv)
 {
     FILE *f = fopen("signatures", "r");
-    virus* viruses=(virus *)malloc(100);
+    virus * viruses [200];
     char encoding[2];
     fread(encoding, 1, 2, f);
     bool isBigEndian;
@@ -33,15 +33,15 @@ int main(int argc, char **argv)
         
         fread(name, 1, 16, f);
         
-        char * signature = ( char *)malloc(length);
-        fread(signature, 1, length, f);
+        /*char * signature = ( char *)malloc(length);
+        fread(signature, 1, length, f);*/
 
-        initVirus(&viruses[index],length,name,signature);
+        viruses[index] = initVirus(length,name);
+        int x = fread(viruses[index]->signature, 1, length, f);
         index++;
     }
-    virus * virusesPtr = viruses;
     for(int i=0; i< index; i++){
-        PrintVirus(virusesPtr+i);
+        PrintVirus(viruses[i]);
         printf("\n");
     }
 }
@@ -49,21 +49,21 @@ void PrintVirus(virus * v){
     printf("Virus name: %s\nVirus size: %d\nsignature:\n",v->name,v->length);
     PrintHex(v->signature,v->length);
 }
-void initVirus(virus * v, unsigned short length, char* name, char* sig){
+virus * initVirus(unsigned short length, char* name){
+    virus * v= malloc(sizeof(virus)+length*sizeof(char));
     v->length = length;
     int i;
     for(i=0;i<16;i++){
         (v->name)[i] = *(name+i);
     }
-    v->signature = sig;
+    return v;
 }
 
-void PrintHex(char *buffer, int length)
+void PrintHex(char * buffer, int length)
 {
     int i;
     for (i = 0; i < length; i++){
-        unsigned char * tmp = (unsigned char *) (buffer+i);
-        printf("%x ", *tmp);
+        printf("%02hhX ", (unsigned char)(*(buffer+i)));
         if ((i+1) % 20 == 0){
             printf("\n");
         }
