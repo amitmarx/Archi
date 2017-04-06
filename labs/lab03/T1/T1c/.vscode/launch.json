@@ -5,7 +5,7 @@
             "name": "C++ Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/Users/amitm/dev/archi/labs/lab03/T1/T1b/app",
+            "program": "/Users/amitm/dev/archi/labs/lab03/T1/T1c/app",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
@@ -39,7 +39,7 @@
             "name": "C++ Attach",
             "type": "cppdbg",
             "request": "attach",
-            "program": "/Users/amitm/dev/archi/labs/lab03/T1/T1b/app",
+            "program": "/Users/amitm/dev/archi/labs/lab03/T1/T1c/app",
             "processId": "${command:pickProcess}",
             "linux": {
                 "MIMode": "gdb",

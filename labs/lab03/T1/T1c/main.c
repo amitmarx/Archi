@@ -10,6 +10,8 @@ void list_print(link *virus_list);
 link *list_append(link *virus_list, virus *data);
 void list_free(link *virus_list);
 link *createNewLink(virus *data);
+link *readViruses();
+void detect_virus(char *buffer, link *virus_list, unsigned int size);
 
 struct virus
 {
@@ -26,13 +28,43 @@ struct link
 
 int main(int argc, char **argv)
 {
+    link *viruses = readViruses();
     FILE *f = fopen("signatures", "r");
-    char encoding[2];
-    fread(encoding, 1, 2, f);
+    int length = sizeof(char) * 10000;
+    char *file = (char *)malloc(length);
+    int size;
+    size = fread(file, 1, length, f);
+    detect_virus(file, viruses, size);
+}
+void detect_virus(char *buffer, link *virus_list, unsigned int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        link *currentLink;
+        currentLink = virus_list;
+        while (currentLink != NULL)
+        {
+            virus *v = currentLink->v;
+            if(v->length + i <size)
+            {
+                if(memcmp(buffer+i,v->signature, v->length)==0){
+                    printf("Starting:%d virus name: %s Virus size: %d:\n",i, v->name, v->length);
+                } 
+            }
+            currentLink = currentLink->next;
+        }
+    }
+}
+
+link *readViruses()
+{
+    FILE *f = fopen("signatures", "r");
+    char encoding[1];
+    fread(encoding, 1, 1, f);
     bool isBigEndian;
     isBigEndian = (unsigned char)encoding[0] == '\x01';
     virus *v;
-    link * virusList = NULL;
+    link *virusList = NULL;
     while (1)
     {
         char len[2];
@@ -42,7 +74,8 @@ int main(int argc, char **argv)
         unsigned short length;
         if (isBigEndian)
         {
-            length = (int)len[0] * 16 + (int)len[1] - 18;
+            /*unsupported;*/
+            exit(0);
         }
         else
         {
@@ -51,11 +84,10 @@ int main(int argc, char **argv)
         v = malloc(sizeof(virus) + length * sizeof(char));
         v->length = length;
         fread(v->name, 1, length + 16, f);
-        virusList = list_append(virusList,v);
+        virusList = list_append(virusList, v);
     }
-    list_print(virusList);
-    list_free(virusList);
     fclose(f);
+    return virusList;
 }
 void PrintVirus(virus *v)
 {
@@ -106,7 +138,8 @@ link *list_append(link *virus_list, virus *data)
     bool isAtEnd = true;
     if (isAtEnd)
     {
-        if(virus_list==NULL){
+        if (virus_list == NULL)
+        {
             return createNewLink(data);
         }
         if (virus_list->next == NULL)
