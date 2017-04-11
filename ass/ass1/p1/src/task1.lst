@@ -1,0 +1,32 @@
+     1                                  section	.rodata
+     2                                  LC0:
+     3 00000000 25730A00                	DB	"%s", 10, 0	; Format string
+     4                                  
+     5                                  section .bss
+     6                                  LC1:
+     7 00000000 <res 00000100>          	RESB	256
+     8                                  
+     9                                  section .text
+    10                                  	align 16
+    11                                  	global my_func
+    12                                  	extern printf
+    13                                  
+    14                                  my_func:
+    15 00000000 55                      	push	ebp
+    16 00000001 89E5                    	mov	ebp, esp	; Entry code - set up ebp and esp
+    17 00000003 60                      	pushad			; Save registers
+    18                                  
+    19 00000004 8B4D08                  	mov ecx, dword [ebp+8]	; Get argument (pointer to string)
+    20                                  
+    21                                  	;mov LC1, ecx
+    22                                  
+    23 00000007 68[00000000]            	push	LC1		; Call printf with 2 arguments: pointer to str
+    24 0000000C 68[00000000]            	push	LC0		; and pointer to format string.
+    25 00000011 E8(00000000)            	call	printf
+    26 00000016 83C408                  	add 	esp, 8		; Clean up stack after call
+    27                                  
+    28 00000019 61                      	popad			; Restore registers
+    29 0000001A 89EC                    	mov	esp, ebp	; Function exit code
+    30 0000001C 5D                      	pop	ebp
+    31 0000001D C3                      	ret
+    32                                  
