@@ -1,8 +1,6 @@
 section	.rodata
 LC0:
-	DB	"%d", 10, 0	; Format string
-ERROR:
-	DB "X or K or both are off range",10, 0
+	DB	"%s", 10, 0	; Format string
 
 section .bss
 LC1:
@@ -10,43 +8,74 @@ LC1:
 
 section .text
 	align 16
-	global calc_div
+	global my_func
 	extern printf
-	extern check
+%macro handle_if_number 2
+cmp %1, '0'
+	jl %%endmacro
+cmp %1, '9'
+	jg %%endmacro
+	sub %1, '0'
+	jmp %2
+%%endmacro:
+%endmacro
+%macro handle_if_uppercase 2
+cmp %1, 'A'
+	jl %%endmacro
+cmp %1, 'Z'
+jg %%endmacro
+	sub %1, ('A'-10)
+	jmp %2
+%%endmacro:
+%endmacro
+%macro handle_if_lowwercase 2
+cmp %1, 'a'
+	jl %%endmacro
+cmp %1, 'z'
+jg %%endmacro
+	sub %1, ('a'-10)
+	jmp %2
+%%endmacro:
+%endmacro
 
-calc_div:
+
+my_func:
 	push	ebp
 	mov	ebp, esp	; Entry code - set up ebp and esp
 	pushad			; Save registers
 
-	mov ebx, dword [ebp+8]	; get x to ebx
-	mov edx, dword [ebp+12] ; get k to edx 
-	pushad
-	push edx
-	push ebx
-	call check
-	add esp, 8  ;delete from stack
-	cmp eax, 1
-	popad
-	jne .printError
-	mov eax, ebx ; move to divide
-	mov ebx, 1
-	mov ecx, edx 
-	shl ebx, cl ; now we have 2^k in ecx
-	mov edx , 0 
-	idiv ebx
+	mov ecx, dword [ebp+8]	; Get argument (pointer to string)
+	mov ebx, LC1
+.read:
+ 	mov dx, [ecx]           ; 2 bytes from stack into dx; check why 2 bytes.
+	cmp dx,10               ;check if dx is \n
+	je .finish
 
-	push	eax		; Call printf with 2 arguments: pointer to str
-	push	LC0		; and pointer to format string.
-	call	printf
+	mov al, dl
+	handle_if_number al, .second_number
+	handle_if_uppercase al, .second_number
+	handle_if_lowwercase al, .second_number
+
+	.second_number:
+	mov ah, dh
+	handle_if_number ah, .compute
+	handle_if_uppercase ah, .compute
+	handle_if_lowwercase ah, .compute
 	
-	jmp .finish
-	.printError:
-	push	ERROR		; and pointer to format string.
-	call	printf
-	jmp .finish
+	.compute:
+	shl al, 4
+	add al, ah
+	
+	mov byte [ebx], al
+	inc ebx
+	add ecx, 2
+	
+  	jmp .read
 	
 	.finish:
+	push	LC1		; Call printf with 2 arguments: pointer to str
+	push	LC0		; and pointer to format string.
+	call	printf
 	add 	esp, 8		; Clean up stack after call
 
 	popad			; Restore registers

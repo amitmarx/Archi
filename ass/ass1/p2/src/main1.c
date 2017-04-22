@@ -1,24 +1,17 @@
 #include <stdio.h>
 
-extern int calc_div(int x, int k);
+#define	BUFFER_SIZE	(128)
 
-int main(int argc, char **argv)
+extern int my_func(char* buf);
+
+int main(int argc, char** argv)
 {
+  char buf[BUFFER_SIZE];
   fflush(stdout);
-  int x, k;
-  scanf("%d", &x);
-  scanf("%d", &k);
-  calc_div(x, k);
+
+  fgets(buf, BUFFER_SIZE, stdin);
+  printf("%s", buf);
+  my_func(buf);
 
   return 0;
-}
-
-int check(int x, int k)
-{
-  printf("x:%d  k:%d\n", x, k);
-  if (x < 0 || k > 31 || k <= 0)
-  {
-    return 0;
-  }
-  return 1;
 }
