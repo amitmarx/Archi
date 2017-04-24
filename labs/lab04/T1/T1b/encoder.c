@@ -75,6 +75,8 @@ int main(int argc, char **argv)
 {
     int inputStream = 0;
     int outStream = 1;
+    char *inFileName = 0;
+    char *outFileName = 0;
     int shouldDebug = -1;
     int offset = 0;
     char filters[] = {'h', 'H'};
@@ -87,11 +89,13 @@ int main(int argc, char **argv)
         }
         else if (compareString(argv[i], "-i") == 0)
         {
-            inputStream = open(argv[i + 1], O_RDWR, 0777);
+            inFileName = argv[i + 1];
+            inputStream = open(inFileName, O_RDWR, 0777);
         }
         else if (compareString(argv[i], "-o") == 0)
         {
-            outStream = open(argv[i + 1], O_RDWR|O_CREAT, 0777);
+            outFileName = argv[i + 1];
+            outStream = open(outFileName, O_RDWR | O_CREAT, 0777);
         }
         else if (argv[i][0] == '-' || argv[i][0] == '+')
         {
@@ -106,8 +110,23 @@ int main(int argc, char **argv)
     writeDebug(argv[1], shouldDebug);
     writeDebug("\nfilters:\n", shouldDebug);
     writeDebug(filters, shouldDebug);
+    writeDebug("\nread content from: ", shouldDebug);
+    if (inFileName == 0){
+        writeDebug("stdin", shouldDebug);
+    }
+    else{
+        writeDebug(inFileName, shouldDebug);
+    }
+    writeDebug("\nwrite content to: ", shouldDebug);
+    if (outFileName == 0){
+        writeDebug("stdout", shouldDebug);
+    }
+    else
+    {
+        writeDebug(outFileName, shouldDebug);
+    }
     writeDebug("\n", shouldDebug);
-    int wasFiltered =-1;
+    int wasFiltered = -1;
     int data = 1;
     while (data == 1)
     {
@@ -121,14 +140,17 @@ int main(int argc, char **argv)
                 *letter = encodeCharWithOffset(*letter, offset);
                 write(outStream, letter, 1);
             }
-            else{
-                wasFiltered =1;
+            else
+            {
+                wasFiltered = 1;
             }
-            if(*letter =='\n'){
-                if(wasFiltered >0){
+            if (*letter == '\n')
+            {
+                if (wasFiltered > 0)
+                {
                     writeDebug("-was filtered.\n", shouldDebug);
                 }
-                wasFiltered =-1;
+                wasFiltered = -1;
             }
         }
         free(letter);
