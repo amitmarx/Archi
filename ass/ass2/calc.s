@@ -1,16 +1,22 @@
 section .rodata
 TEMPLATE: DB	"%.*s", 10, 0	; Format string
-MSG : DB "bla"
+MOVE_LINE:		DB	10, 0
+printInt: 		DB	"%d" ,0,0
 
 section .data
 	element_size equ 5
-	stack_index:	dd	0 
+	stack_index:	dd	0
+	printing_tmp:		dd	0 
+	operations_counter:	dd	0
 
 section .bss
 stack:
 	RESB	20
 input_buffer:
 	RESB	80
+array:
+	RESB	81
+
 
 section .text 
 	%macro handle_if_number 3
@@ -71,14 +77,20 @@ section .text
 	; je handleShiftLeft
 	; cmp byte [ecx], 'r'
 	; je handleShiftRight
-	; cmp byte [ecx], 'p'
-	; je handlePrint
+	cmp byte [ecx], 'p'
+	je handle_print
 	; cmp byte [ecx], 'd'
 	; je handleDouble
 	cmp byte [ecx], 'q'
 	je handleQuit
 
 	read_number:
+	;============================================================================================
+	; eax - store the current node (when created)
+	; ecx - pointer to input text (uses as itertable)
+	; edx - store the converted value of the data(after compute)
+	; ebx - store the previous node
+	;============================================================================================
 	mov dx, [ecx]
 
 	handle_if_number dl, .second_number, .finish_read_number ; continue to compute or jump to end of loop
@@ -121,9 +133,125 @@ section .text
 	inc dword [stack_index]
 	jmp get_operand
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+handle_print:
+
+	mov	ebx, 0
+	mov	eax, 0
+	mov	ecx, 0			;Setting to null all the registers for the print functions	
+	mov	eax, [stack_index]
+	dec eax
+	mov	ebx, dword [stack + 4*eax]	
+	cmp	ebx, 0
+	jmp	printLoop
+
+
+printLoop:					
+	cmp	ebx, 0
+	je	print_the_number
+	mov	eax, 0
+	mov	al, byte [ebx]        
+	mov	byte [array + ecx], al
+	inc	ecx
+	
+	
+	
+	mov	ebx, dword [ebx+1]
+	jmp	printLoop
+;We copy the elements in the array from the end
+
+print_the_number:
+	mov	byte [array + ecx], 0
+
+
+	dec	ecx
+	mov	edx, 0
+	
+	print_first_number:
+	mov	dl, byte [array + ecx]
+	and	dl, 11110000b
+	shr	dl, 4
+	cmp 	byte dl, 0
+	je	continue_first_number
+	push	ecx
+	push	edx
+	call	hex_number_print_value
+	add	esp, 4
+	pop	ecx
+
+continue_first_number:
+	mov	dl, byte [array + ecx]
+	and	dl, 00001111b
+	push	ecx
+	push	edx
+	call	hex_number_print_value ;Calling the function that print the value
+	add	esp, 4
+	pop	ecx
+	
+hex_number_print_loop:
+	dec	ecx
+	mov	edx, 0
+	cmp	ecx, 0
+	jl	end_of_printing
+	mov	dl, byte [array + ecx]
+	and	dl, 11110000b
+	shr	dl, 4
+	push	ecx
+	push	edx
+	call	hex_number_print_value
+	add	esp, 4
+	pop	ecx
+	mov	dl, byte [array + ecx]
+	and	dl, 00001111b
+	push	ecx
+	push	edx
+	call	hex_number_print_value ;Calling the function that print the value
+	add	esp, 4
+	pop	ecx
+	jmp	hex_number_print_loop ; keep looping until printing all the elements
+
+
+	
+	
+end_of_printing:
+	pusha
+	push	MOVE_LINE
+	call	printf
+	add	esp, 4
+	popa
+	dec	dword [stack_index]			
+	inc	dword [operations_counter]
+	jmp	get_operand
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 handleQuit:
 cleanup:
     mov esp, ebp
     pop ebp
     ret 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hex_number_print_value:        	               
+	push    ebp              	
+	mov     ebp, esp         	
+	pushad
+	mov	eax, dword [ebp+8] ; Putting the input number in EAX
+	
+	jmp print_it
+
+;Printing according to the input: letter or number
+print_it:
+	mov	dword [printing_tmp], eax
+	mov	eax, printing_tmp
+	push	dword[printing_tmp]
+	push 	printInt
+	call	printf
+	add	esp, 8
+
+	popad     	             	; restore all previously used registers
+	mov     esp, ebp
+	pop     dword ebp
+	ret
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
