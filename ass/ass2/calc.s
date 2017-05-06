@@ -20,6 +20,8 @@ array:
 
 section .text 
 	%macro handle_if_number 3
+	cmp %1, 0
+	je %3
 	cmp %1, '0'
 		jl %%endmacro
 	cmp %1, '9'
@@ -27,8 +29,6 @@ section .text
 		sub %1, '0'
 	jmp %2
 	%%endmacro:
-	cmp %1, 0
-		je %3
 	%endmacro
 	%macro print 1
 	push %1
@@ -91,6 +91,7 @@ section .text
 	; edx - store the converted value of the data(after compute)
 	; ebx - store the previous node
 	;============================================================================================
+	mov edx,0
 	mov dx, [ecx]
 
 	handle_if_number dl, .second_number, .finish_read_number ; continue to compute or jump to end of loop
@@ -102,11 +103,14 @@ section .text
 	add dl, dh ; dl has the data byte
 
 	.allocated_new_node:
-	pushad
+	push ebx
+	push ecx
+	push edx
 	push element_size
 	call malloc ; eax has the a poiter to allocated memory
 	add esp, 4 ; remove element_size
-	popad
+	pop edx
+	pop ecx
 	mov byte [eax], dl ; the new node has the data
 	mov dword [eax+1], 0 ; initialize the next to 0
 	
@@ -153,17 +157,12 @@ printLoop:
 	mov	al, byte [ebx]        
 	mov	byte [array + ecx], al
 	inc	ecx
-	
-	
-	
 	mov	ebx, dword [ebx+1]
 	jmp	printLoop
 ;We copy the elements in the array from the end
 
 print_the_number:
 	mov	byte [array + ecx], 0
-
-
 	dec	ecx
 	mov	edx, 0
 	
