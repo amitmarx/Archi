@@ -1,14 +1,14 @@
 section .rodata
 TEMPLATE: DB	"%.*s", 10, 0	; Format string
 MOVE_LINE:		DB	10, 0
-printInt: 		DB	"%d" ,0,0
-
+PRINT_INT_TEMPLATE: 		DB	"%d" ,0,0
+MSG: 	db "Read number",10,0 
 section .data
 	element_size equ 5
 	stack_index:	dd	0
 	printing_tmp:		dd	0 
 	operations_counter:	dd	0
-	MSG: 	db "Read number",10,0 
+	
 
 section .bss
 stack:
@@ -32,7 +32,7 @@ section .text
 	pushad
 	mov eax, %1
 	push 	dword [eax]
-	push 	printInt
+	push 	PRINT_INT_TEMPLATE
 	call 	printf
 	add		esp, 8
 	popad
@@ -60,11 +60,11 @@ pop %1
 	popad
 %endmacro
 	%macro handle_if_number 2
-	cmp dword [esi], 0
+	cmp dword [letter_counter], 0
 	je .finish_read_number
 	sub %1, '0'
 	%%endmacro:
-	dec dword [esi]
+	dec dword [letter_counter]
 	jmp %2
 %endmacro
 	%macro print 1
@@ -76,7 +76,21 @@ pop %1
 	add esp, 4*2 ; clean stacks call params
 	pop %1
 	%%endmacro:
-	%endmacro
+%endmacro
+%macro create_new_node_in_eax 1
+	push ebx
+	push ecx
+	push edx
+	push element_size
+	call malloc ; eax has a poiter to allocated memory
+	add esp, 4 ; remove element_size
+	pop edx
+	pop ecx
+	pop ebx
+	mov byte [eax], %1 ; the new node has the data
+	mov dword [eax+1], 0 ; initialize the next to 0
+	
+%endmacro
 	 extern printf 
      extern fprintf 
      extern malloc 
@@ -98,16 +112,7 @@ pop %1
 	pop ecx ; pointer to input
 	add esp, 4 ; clean stacks call params
 	mov ebx, 0 ; ebx will store the previous node
-	mov esi, letter_counter ; count number of digits 
-	mov dword [esi],0; reset counter
-	point_ecx_to_last_pos:
-	cmp byte [ecx], 0
-	je end_loop
-	inc dword [esi]
-	inc ecx
-	jmp point_ecx_to_last_pos
-	end_loop:
-	dec ecx
+	mov dword [letter_counter],0; reset counter
 	
 	; cmp byte [ecx], 10
 	; je handleEnter
@@ -124,20 +129,27 @@ pop %1
 	cmp byte [ecx], 'q'
 	je handleQuit
 	
-	dec ecx
-	round_even letter_counter
-	read_number:
+	point_ecx_to_last_pos:
+	cmp byte [ecx], 0
+	je end_loop
+	inc dword [letter_counter]
+	inc ecx
+	jmp point_ecx_to_last_pos
+	end_loop:
+	sub ecx,2
+
+	round_even letter_counter ; make counter even(round up), inorder to read two bytes each time
+	
 	;============================================================================================
 	; eax - store the current node (when created)
 	; ecx - pointer to input text (uses as itertable)
 	; edx - store the converted value of the data(after compute)
 	; ebx - store the previous node
+	; letter_counter - store hove many letters from input we have more to read
 	;============================================================================================
-
+	read_number:
 	mov edx,0
 	mov dx, [ecx]
-	; cmp ecx, input_buffer
-	; jl .finish_read_number
 	
 	handle_if_number dl, .second_number  ; continue to compute or jump to end of loop
 	.second_number:
@@ -147,19 +159,7 @@ pop %1
 	shl dl, 4
 	add dl, dh ; dl has the data byte
 	
-	.allocated_new_node:
-	push ebx
-	push ecx
-	push edx
-	push element_size
-	call malloc ; eax has the a poiter to allocated memory
-	add esp, 4 ; remove element_size
-	pop edx
-	pop ecx
-	pop ebx
-	mov byte [eax], dl ; the new node has the data
-	mov dword [eax+1], 0 ; initialize the next to 0
-	
+	create_new_node_in_eax dl
 	cmp ebx, 0 ; ebx represent the previous node
 	je .set_first_element
 	jmp .append_to_previous
@@ -291,7 +291,7 @@ print_it:
 	mov	dword [printing_tmp], eax
 	mov	eax, printing_tmp
 	push	dword[printing_tmp]
-	push 	printInt
+	push 	PRINT_INT_TEMPLATE
 	call	printf
 	add	esp, 8
 
