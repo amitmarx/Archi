@@ -8,6 +8,7 @@ section .data
 	stack_index:	dd	0
 	printing_tmp:		dd	0 
 	operations_counter:	dd	0
+	MSG: 	db "Read number",10,0 
 
 section .bss
 stack:
@@ -16,20 +17,56 @@ input_buffer:
 	RESB	80
 array:
 	RESB	81
-
+letter_counter:
+	RESB	4
 
 section .text 
-	%macro handle_if_number 3
-	cmp %1, 0
-	je %3
-	cmp %1, '0'
-		jl %%endmacro
-	cmp %1, '9'
-		jg %%endmacro
-		sub %1, '0'
-	jmp %2
+%macro print_msg 2
+	pushad
+	push 	%1
+	call 	printf
+	add		esp, %2
+	popad
+%endmacro
+%macro print_int 1
+	pushad
+	mov eax, %1
+	push 	dword [eax]
+	push 	printInt
+	call 	printf
+	add		esp, 8
+	popad
+%endmacro
+
+%macro print_reg 1
+push %1
+	mov tem_reg, %1
+	print_msg tem_reg, 4
+pop %1
+%endmacro
+
+%macro round_even 1
+	pushad
+	mov eax, %1
+	shr dword[eax],1
+	jc %%add_two
+	shl dword [eax],1
+	jmp %%end_round_even
+		
+	%%add_two:
+	shl dword [eax],1
+	add dword [eax],2
+	%%end_round_even
+	popad
+%endmacro
+	%macro handle_if_number 2
+	cmp dword [esi], 0
+	je .finish_read_number
+	sub %1, '0'
 	%%endmacro:
-	%endmacro
+	dec dword [esi]
+	jmp %2
+%endmacro
 	%macro print 1
 	push %1
 	push 1
@@ -61,14 +98,17 @@ section .text
 	pop ecx ; pointer to input
 	add esp, 4 ; clean stacks call params
 	mov ebx, 0 ; ebx will store the previous node
-	
+	mov esi, letter_counter ; count number of digits 
+	mov dword [esi],0; reset counter
 	point_ecx_to_last_pos:
 	cmp byte [ecx], 0
 	je end_loop
+	inc dword [esi]
 	inc ecx
 	jmp point_ecx_to_last_pos
 	end_loop:
 	dec ecx
+	
 	; cmp byte [ecx], 10
 	; je handleEnter
 	; cmp byte [ecx], '+'
@@ -83,7 +123,9 @@ section .text
 	; je handleDouble
 	cmp byte [ecx], 'q'
 	je handleQuit
-
+	
+	dec ecx
+	round_even letter_counter
 	read_number:
 	;============================================================================================
 	; eax - store the current node (when created)
@@ -91,17 +133,20 @@ section .text
 	; edx - store the converted value of the data(after compute)
 	; ebx - store the previous node
 	;============================================================================================
+
 	mov edx,0
 	mov dx, [ecx]
-
-	handle_if_number dl, .second_number, .finish_read_number ; continue to compute or jump to end of loop
+	; cmp ecx, input_buffer
+	; jl .finish_read_number
+	
+	handle_if_number dl, .second_number  ; continue to compute or jump to end of loop
 	.second_number:
-	handle_if_number dh, .compute, .allocated_new_node ; compute or skip computation
-
+	handle_if_number dh, .compute ; compute or skip computation
+	
 	.compute:
 	shl dl, 4
 	add dl, dh ; dl has the data byte
-
+	
 	.allocated_new_node:
 	push ebx
 	push ecx
@@ -111,6 +156,7 @@ section .text
 	add esp, 4 ; remove element_size
 	pop edx
 	pop ecx
+	pop ebx
 	mov byte [eax], dl ; the new node has the data
 	mov dword [eax+1], 0 ; initialize the next to 0
 	
@@ -128,7 +174,8 @@ section .text
 
 	.set_previous_to_ebx:
 	mov ebx, eax
-
+	
+	
 	dec ecx
 	dec ecx
 	jmp read_number ; continue to read more bytes

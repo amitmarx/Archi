@@ -2,6 +2,7 @@ section	.rodata
 LC0:
 	DB	"%s", 10, 0	; Format string
 
+
 section .bss
 LC1:
 	RESB	256
@@ -10,6 +11,9 @@ section .text
 	align 16
 	global my_func
 	extern printf
+
+	
+%endmacro
 %macro handle_if_number 2
 cmp %1, '0'
 	jl %%endmacro
@@ -50,7 +54,8 @@ my_func:
  	mov dx, [ecx]           ; 2 bytes from stack into dx; check why 2 bytes.
 	cmp dx,10               ;check if dx is \n
 	je .finish
-
+	print_msg MSG, 4
+	
 	mov al, dl
 	handle_if_number al, .second_number
 	handle_if_uppercase al, .second_number
