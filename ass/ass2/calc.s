@@ -118,6 +118,8 @@ pop %1
 	; je handleEnter
 	; cmp byte [ecx], '+'
 	; je handlePlus
+	cmp byte [ecx], '+'
+	je handlePlus
 	; cmp byte [ecx], 'l'
 	; je handleShiftLeft
 	; cmp byte [ecx], 'r'
@@ -268,6 +270,61 @@ end_of_printing:
 	dec	dword [stack_index]			
 	inc	dword [operations_counter]
 	jmp	get_operand
+
+handlePlus:
+	mov eax, [stack_index]			; eax has the stack index
+	dec eax 
+	mov ebx, dword [stack + 4*eax]   ; ebx has the pointer of last number
+	dec eax 					   	; inc the stack index
+	mov edx, dword [stack + 4*eax] ;edx has the second stack pointer
+	;mov cl,0
+	computing:
+	
+
+	mov al, 0
+	mov byte al, [edx] 	; add second to al
+	popf
+	adc byte al, [ebx]		; add first to al
+	
+	;add byte al, cl
+	;mov cl,0
+	;jnc no_carry
+	print_msg MSG, 4
+	;mov cl, 1
+	;no_carry:
+	;add byte al, cf 	; add carry****** need to be fixed
+	;push ecx
+	daa  				; BCD format
+	pushf
+	;pop ecx
+	mov byte [edx],al
+	cmp dword [ebx+1], 0 ; check if first number ended 
+	je check_carry
+	cmp dword [edx+1], 0 ; check if second number ended
+	je second_number_ended
+
+	mov dword ebx, [ebx+1]
+	mov dword edx, [edx+1]
+	jmp computing 
+
+	second_number_ended:
+	mov dword ebx, [ebx+1]
+	mov dword [edx+1], ebx
+
+	check_carry:
+	jnc update_the_stack
+
+
+	jmp check_carry
+
+	update_the_stack:
+	dec dword [stack_index]
+	;mov eax, [stack_index]
+	;mov byte [stack+ 4*eax], al    ; move the result to edx- second number in stack
+	jmp	get_operand
+
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 handleQuit:
