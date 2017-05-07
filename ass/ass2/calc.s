@@ -114,8 +114,6 @@ pop %1
 	mov ebx, 0 ; ebx will store the previous node
 	mov dword [letter_counter],0; reset counter
 	
-	; cmp byte [ecx], 10
-	; je handleEnter
 	; cmp byte [ecx], '+'
 	; je handlePlus
 	; cmp byte [ecx], 'l'
@@ -124,8 +122,8 @@ pop %1
 	; je handleShiftRight
 	cmp byte [ecx], 'p'
 	je handle_print
-	; cmp byte [ecx], 'd'
-	; je handleDouble
+	cmp byte [ecx], 'd'
+	je handle_Double
 	cmp byte [ecx], 'q'
 	je handleQuit
 	
@@ -141,6 +139,7 @@ pop %1
 	round_even letter_counter ; make counter even(round up), inorder to read two bytes each time
 	
 	;============================================================================================
+	;READ_NUMBER
 	; eax - store the current node (when created)
 	; ecx - pointer to input text (uses as itertable)
 	; edx - store the converted value of the data(after compute)
@@ -184,6 +183,35 @@ pop %1
 	inc dword [stack_index]
 	jmp get_operand
 
+	;============================================================================================
+	;HANDLE_DOUBLE
+	; eax - new allocated node
+	; ecx - pointer to copied element
+	; edx - holds the stack counter
+	; ebx - previous new node
+	;============================================================================================
+	handle_Double:
+	mov edx,[stack_index] ; edx has the counter to next index
+	dec edx ; edx has the index that should be copy
+	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
+	mov ebx, stack
+	inc edx; use edx to hold the position of next stack position 
+	shl edx,2 ; edx = edx*4 - in order to make the add, chage the offset to byes
+	add ebx, edx ; ebx has the pointer that should be update
+	
+	.read_node
+	cmp ecx,0 
+	je finish_copy ; Break operation if we finish copy
+	mov dl, [ecx] ; dl now holds the node data(the one we copy)
+	create_new_node_in_eax dl
+	mov [ebx], eax ; update previous to point the new node
+	mov ebx, eax ; set previous to current
+	inc ebx ; point to 'next' field
+	mov ecx, [ecx+1] ; continue to next copied element
+	jmp .read_node
+	finish_copy:
+	inc dword [stack_index]
+	jmp get_operand
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 handle_print:
 
@@ -257,8 +285,6 @@ hex_number_print_loop:
 	jmp	hex_number_print_loop ; keep looping until printing all the elements
 
 
-	
-	
 end_of_printing:
 	pusha
 	push	MOVE_LINE
