@@ -1,12 +1,12 @@
 section .rodata
 TEMPLATE: DB	"%.*s", 10, 0	; Format string
 MOVE_LINE:		DB	10, 0
-PRINT_INT_TEMPLATE: 		DB	"%d" ,0,0
-MSG: 	db "Read number",10,0 
+PRINT_INT_TEMPLATE: 		DB	"%d" ,0
+MSG: 	db "Read number",10,0
+NEW_LINE: 	db 10,0 
 section .data
 	element_size equ 5
 	stack_index:	dd	0
-	printing_tmp:		dd	0 
 	operations_counter:	dd	0
 	
 
@@ -32,9 +32,8 @@ cmp ecx, 0
 je %%end_delete_loop
 
 push dword [ecx+1] ; store the next node pointer
-delete_node delete_node ecx
+delete_node ecx
 pop ecx
-print_msg MSG, 4
 jmp %%delete_loop
 
 %%end_delete_loop:
@@ -46,13 +45,13 @@ popad
 pushad
 push %1 ; push pointer to node we want to clean
 call free
-print_msg MSG,4
 add esp, 4
 popad
 %endmacro
 %macro expand_number_to_edx 1
 	push ecx
 	mov cl, %1
+	mov edx, 0
 	mov	dl, cl 
 	and	dl, 11110000b
 	shr	dl, 4
@@ -227,6 +226,8 @@ popad
 	; ebx - pointer to previous node
 	;============================================================================================
 	handle_Shift_Right:
+	
+	.make_shift:
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that should be shifted
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
@@ -315,88 +316,6 @@ popad
 	finish_copy:
 	inc dword [stack_index]
 	jmp get_operand
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-handle_print:
-
-	mov	ebx, 0
-	mov	eax, 0
-	mov	ecx, 0			;Setting to null all the registers for the print functions	
-	mov	eax, [stack_index]
-	dec eax
-	mov	ebx, dword [stack + 4*eax]	
-	cmp	ebx, 0
-	jmp	printLoop
-
-
-printLoop:					
-	cmp	ebx, 0
-	je	print_the_number
-	mov	eax, 0
-	mov	al, byte [ebx]        
-	mov	byte [array + ecx], al
-	inc	ecx
-	mov	ebx, dword [ebx+1]
-	jmp	printLoop
-;We copy the elements in the array from the end
-
-print_the_number:
-	mov	byte [array + ecx], 0
-	dec	ecx
-	mov	edx, 0
-	
-	print_first_number:
-	mov	dl, byte [array + ecx]
-	and	dl, 11110000b
-	shr	dl, 4
-	cmp 	byte dl, 0
-	je	continue_first_number
-	push	ecx
-	push	edx
-	call	hex_number_print_value
-	add	esp, 4
-	pop	ecx
-
-continue_first_number:
-	mov	dl, byte [array + ecx]
-	and	dl, 00001111b
-	push	ecx
-	push	edx
-	call	hex_number_print_value ;Calling the function that print the value
-	add	esp, 4
-	pop	ecx
-	
-hex_number_print_loop:
-	dec	ecx
-	mov	edx, 0
-	cmp	ecx, 0
-	jl	end_of_printing
-	mov	dl, byte [array + ecx]
-	and	dl, 11110000b
-	shr	dl, 4
-	push	ecx
-	push	edx
-	call	hex_number_print_value
-	add	esp, 4
-	pop	ecx
-	mov	dl, byte [array + ecx]
-	and	dl, 00001111b
-	push	ecx
-	push	edx
-	call	hex_number_print_value ;Calling the function that print the value
-	add	esp, 4
-	pop	ecx
-	jmp	hex_number_print_loop ; keep looping until printing all the elements
-
-
-end_of_printing:
-	pusha
-	push	MOVE_LINE
-	call	printf
-	add	esp, 4
-	popa
-	dec	dword [stack_index]			
-	inc	dword [operations_counter]
-	jmp	get_operand
 
 handlePlus:
 	mov eax, [stack_index]			; eax has the stack index
@@ -450,38 +369,71 @@ handlePlus:
 	;mov byte [stack+ 4*eax], al    ; move the result to edx- second number in stack
 	jmp	get_operand
 
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-handleQuit:
-cleanup:
-    mov esp, ebp
-    pop ebp
-    ret 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-hex_number_print_value:        	               
-	push    ebp              	
-	mov     ebp, esp         	
-	pushad
-	mov	eax, dword [ebp+8] ; Putting the input number in EAX
+	;============================================================================================
+	; Handle_Print
+	; eax - carry flag
+	; ecx - pointer to node
+	; edx - temp register
+	; ebx - pointer to previous node
+	;============================================================================================
+	handle_print:
+	mov edx,[stack_index] ; edx has the counter to next index
+	dec edx ; edx has the index that should be printed
+	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
+	mov ebx, 0 ; init previous node
+	.find_last_node:
+	cmp ecx, 0
+	je .ebx_has_last_node
+	mov edx, [ecx+1] ; read the next node
+	mov dword [ecx+1],ebx ; set current node to point his parent node
+	mov ebx, ecx ; ebx has now the current node pointer for furture use
+	mov ecx, edx ; ecx has the next node we should handle
+	jmp .find_last_node
 	
-	jmp print_it
+	.ebx_has_last_node:
+	mov ecx, 0
+	mov esi, 0 ; will indicate to say if number started(to ignore zero at beggining)
+	.iterate_and_print:
+	cmp ebx,0
+	je .finish_print
+	expand_number_to_edx byte [ebx] ; will put for [ebx]= 0001|0010  :  dl=2, dh=1 
 
-;Printing according to the input: letter or number
-print_it:
-	mov	dword [printing_tmp], eax
-	mov	eax, printing_tmp
-	push	dword[printing_tmp]
-	push 	PRINT_INT_TEMPLATE
-	call	printf
-	add	esp, 8
+	.handle_zero_at_beggining
+	cmp esi,0 ; a flage telling if number has already started
+	jne .print_values_from_first
+	cmp dh,0 
+	jne .print_values_from_first
+	cmp dl,0 
+	jne .print_values_from_second
+	jmp .continue_print_iterate
 
-	popad     	             	; restore all previously used registers
-	mov     esp, ebp
-	pop     dword ebp
-	ret
+	.print_values_from_first:
+	mov byte [print_int_storage], dh
+	print_int print_int_storage
+	.print_values_from_second:
+	mov esi,1 ; telling that the number has started in order to do not ignore zeros anymore
+	mov byte [print_int_storage], dl
+	print_int print_int_storage 
+	
+	;this section will fix the next fields to point ahead
+	.continue_print_iterate:
+	mov edx, [ebx+1] ; edx will have the next node to iterate
+	mov [ebx+1], ecx ; make node to point ahead
+	mov ecx, ebx; make ecx to point the current node(for next iteration)
+	mov ebx, edx ; copy edx pointer, to continue iterate ebx
+	jmp .iterate_and_print
+	
+	.finish_print:
+	print_msg NEW_LINE, 4
+	mov edx,[stack_index] ; edx has the counter to next index
+	dec edx ; edx has the index that should be deleted
+	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
+	delete_from_node ecx
+	mov [stack_index], edx ; decrease stack_index by one
+	jmp get_operand
 
-	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;ref code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	handleQuit:
+	.cleanup:
+    	mov esp, ebp
+    	pop ebp
+    	ret 
