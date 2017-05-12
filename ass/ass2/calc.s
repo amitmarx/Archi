@@ -23,12 +23,32 @@ print_int_storage:
 	RESB	4
 
 section .text 
-%macro compress_number_to_dl 2
-	mov dh, $1
-	mov dl, $2
-	shl dh, 4
-	add dh, dl ; dh has the data byte
-	mov dl, dh
+
+%macro delete_from_node 1
+pushad
+mov ecx, %1
+%%delete_loop:
+cmp ecx, 0
+je %%end_delete_loop
+
+push dword [ecx+1] ; store the next node pointer
+delete_node delete_node ecx
+pop ecx
+print_msg MSG, 4
+jmp %%delete_loop
+
+%%end_delete_loop:
+popad
+
+%endmacro
+
+%macro delete_node 1
+pushad
+push %1 ; push pointer to node we want to clean
+call free
+print_msg MSG,4
+add esp, 4
+popad
 %endmacro
 %macro expand_number_to_edx 1
 	push ecx
@@ -198,8 +218,9 @@ section .text
 	.finish_read_number:
 	inc dword [stack_index]
 	jmp get_operand
+
 	;============================================================================================
-	;handle_Shift_Right
+	; handle_Shift_Right
 	; eax - carry flag
 	; ecx - pointer to node
 	; edx - temp register
@@ -247,7 +268,7 @@ section .text
 	cmp dh,0
 	jne .update_node_data
 	mov edx, [ebx+1] ; edx will have the next node to iterate
-	;;;;TODO: delete node;;;;
+	delete_node ebx
 	mov ecx, 0
 	mov ebx, edx ; copy edx pointer
 	jmp .compute_shift_right
@@ -263,17 +284,6 @@ section .text
 	
 	.finish_shift_right:
 	jmp get_operand
-
-
-	; ;;;;;;;;;;;;CODE FOR PRINTING REGISTER;;;;;;;;;;;;;;
-	; push ecx
-	; mov ecx,0
-	; mov cl,dh
-	; mov [print_int_storage],ecx
-	; print_int print_int_storage
-	; pop ecx
-	; print_msg MSG, 4
-	; ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 	;============================================================================================
