@@ -23,7 +23,15 @@ print_int_storage:
 	RESB	4
 
 section .text 
-
+%macro pop_and_free 0
+	pushad
+	mov edx,[stack_index] ; edx has the counter to next index
+	dec edx ; edx has the index that should be deleted
+	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
+	delete_from_node ecx
+	mov [stack_index], edx ; decrease stack_index by one
+	popad
+%endmacro
 %macro delete_from_node 1
 pushad
 mov ecx, %1
@@ -226,8 +234,27 @@ popad
 	; ebx - pointer to previous node
 	;============================================================================================
 	handle_Shift_Right:
-	
+	mov edx,[stack_index] ; edx has the counter to next index
+	dec edx ; edx has the index that to amount of shifts
+	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to amount of shifts
+	cmp dword [ecx+1],0
+	;;;;;;;;;;;;TODO:WRITE AN ERROR;;;;;;;;;;;;;;
+	jne get_operand
+	mov al, [ecx] ; al has the amount in BCD
+	expand_number_to_edx al
+	mov eax,0
+	mov al, dh
+	mov bl, 10
+	mul bl ; ax has now dh*10
+	mov edi,0
+	add al, dl
+	add edi,eax 
+	pop_and_free
+
 	.make_shift:
+	
+	cmp edi, 0
+	je .finish_shift_right
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that should be shifted
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
@@ -247,7 +274,7 @@ popad
 	mov esi, 0 ; will indicate to say if number started
 	.compute_shift_right:
 	cmp ebx,0
-	je .finish_shift_right
+	je .finish_one_shift_right_iteration
 	expand_number_to_edx byte [ebx]
 	add dh, al ; add 10 if there was carry
 	mov al, 0 ; carry was used
@@ -283,6 +310,10 @@ popad
 	mov ebx, edx ; copy edx pointer
 	jmp .compute_shift_right
 	
+	.finish_one_shift_right_iteration:
+	dec edi
+	jmp .make_shift
+
 	.finish_shift_right:
 	jmp get_operand
 
@@ -425,11 +456,7 @@ handlePlus:
 	
 	.finish_print:
 	print_msg NEW_LINE, 4
-	mov edx,[stack_index] ; edx has the counter to next index
-	dec edx ; edx has the index that should be deleted
-	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
-	delete_from_node ecx
-	mov [stack_index], edx ; decrease stack_index by one
+	pop_and_free
 	jmp get_operand
 
 	handleQuit:
