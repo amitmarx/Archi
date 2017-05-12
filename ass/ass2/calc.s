@@ -19,8 +19,28 @@ array:
 	RESB	81
 letter_counter:
 	RESB	4
+print_int_storage:
+	RESB	4
 
 section .text 
+%macro compress_number_to_dl 2
+	mov dh, $1
+	mov dl, $2
+	shl dh, 4
+	add dh, dl ; dh has the data byte
+	mov dl, dh
+%endmacro
+%macro expand_number_to_edx 1
+	push ecx
+	mov cl, %1
+	mov	dl, cl 
+	and	dl, 11110000b
+	shr	dl, 4
+	mov dh, dl ; dh has now the first number
+	mov dl,cl
+	and	dl, 00001111b ; dl has now the second number
+	pop ecx
+%endmacro
 %macro print_msg 2
 	pushad
 	push 	%1
@@ -38,12 +58,6 @@ section .text
 	popad
 %endmacro
 
-%macro print_reg 1
-push %1
-	mov tem_reg, %1
-	print_msg tem_reg, 4
-pop %1
-%endmacro
 
 %macro round_even 1
 	pushad
@@ -120,8 +134,8 @@ pop %1
 	je handlePlus
 	; cmp byte [ecx], 'l'
 	; je handleShiftLeft
-	; cmp byte [ecx], 'r'
-	; je handleShiftRight
+	cmp byte [ecx], 'r'
+	je handle_Shift_Right
 	cmp byte [ecx], 'p'
 	je handle_print
 	cmp byte [ecx], 'd'
@@ -184,6 +198,83 @@ pop %1
 	.finish_read_number:
 	inc dword [stack_index]
 	jmp get_operand
+	;============================================================================================
+	;handle_Shift_Right
+	; eax - carry flag
+	; ecx - pointer to node
+	; edx - temp register
+	; ebx - pointer to previous node
+	;============================================================================================
+	handle_Shift_Right:
+	mov edx,[stack_index] ; edx has the counter to next index
+	dec edx ; edx has the index that should be shifted
+	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
+	mov ebx, 0 ; init previous node
+	.find_last_node:
+	cmp ecx, 0
+	je .ebx_has_last_node
+	mov edx, [ecx+1] ; read the next node
+	mov dword [ecx+1],ebx ; set current node to point his parent node
+	mov ebx, ecx ; ebx has now the current node pointer for furture use
+	mov ecx, edx ; ecx has the next node we should handle
+	jmp .find_last_node
+	
+	.ebx_has_last_node:
+	mov al, 0 ; will be used to store if there is any carry
+	mov ecx, 0
+	mov esi, 0 ; will indicate to say if number started
+	.compute_shift_right:
+	cmp ebx,0
+	je .finish_shift_right
+	expand_number_to_edx byte [ebx]
+	add dh, al ; add 10 if there was carry
+	mov al, 0 ; carry was used
+	shr dh,1
+	jnc .no_carry_for_shifting_first
+	mov al, 10
+	.no_carry_for_shifting_first:
+	add dl, al ; add 10 if there was carry
+	mov al, 0 ; carry was used
+	shr dl,1
+	jnc .no_carry_for_shifting_second
+	mov al, 10
+	.no_carry_for_shifting_second:
+	shl dh, 4
+	add dh, dl ; dh has now the data
+
+	cmp esi,0
+	jne .update_node_data
+	cmp dh,0
+	jne .update_node_data
+	mov edx, [ebx+1] ; edx will have the next node to iterate
+	;;;;TODO: delete node;;;;
+	mov ecx, 0
+	mov ebx, edx ; copy edx pointer
+	jmp .compute_shift_right
+
+	.update_node_data:
+	mov esi,1 ; will indicate that the number has started(do not ignore zero's)
+	mov [ebx], dh ; update data value
+	mov edx, [ebx+1] ; edx will have the next node to iterate
+	mov [ebx+1], ecx ; make node to point ahead
+	mov ecx, ebx
+	mov ebx, edx ; copy edx pointer
+	jmp .compute_shift_right
+	
+	.finish_shift_right:
+	jmp get_operand
+
+
+	; ;;;;;;;;;;;;CODE FOR PRINTING REGISTER;;;;;;;;;;;;;;
+	; push ecx
+	; mov ecx,0
+	; mov cl,dh
+	; mov [print_int_storage],ecx
+	; print_int print_int_storage
+	; pop ecx
+	; print_msg MSG, 4
+	; ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 	;============================================================================================
 	;HANDLE_DOUBLE
@@ -201,7 +292,7 @@ pop %1
 	shl edx,2 ; edx = edx*4 - in order to make the add, chage the offset to byes
 	add ebx, edx ; ebx has the pointer that should be update
 	
-	.read_node
+	.read_node:
 	cmp ecx,0 
 	je finish_copy ; Break operation if we finish copy
 	mov dl, [ecx] ; dl now holds the node data(the one we copy)
