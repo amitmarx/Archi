@@ -1,0 +1,11 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": ".*",
+                "cmd": "cp -r ~/dev/archi/ass/ass2/* ~/dev/lab_mount/archi/ass/ass2"
+            }
+        ]
+    }
+}

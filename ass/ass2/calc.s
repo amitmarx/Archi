@@ -232,6 +232,7 @@ popad
 	; ecx - pointer to node
 	; edx - temp register
 	; ebx - pointer to previous node
+	; edi - holds the amount needed to be shifted
 	;============================================================================================
 	handle_Shift_Right:
 	mov edx,[stack_index] ; edx has the counter to next index
