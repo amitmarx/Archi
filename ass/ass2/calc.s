@@ -19,8 +19,18 @@ array:
 	RESB	81
 letter_counter:
 	RESB	4
+
 print_int_storage:
 	RESB	4
+
+carry_flag:
+	RESB	4
+shift_left_flag
+ 	RESB	4
+shift_left_counter
+ 	RESB	4
+
+
 
 section .text 
 %macro pop_and_free 0
@@ -155,14 +165,13 @@ popad
 	mov ebx, 0 ; ebx will store the previous node
 	mov dword [letter_counter],0; reset counter
 	
-	; cmp byte [ecx], '+'
-	; je handlePlus
+	
 	cmp byte [ecx], '+'
 	je handlePlus
-	; cmp byte [ecx], 'l'
-	; je handleShiftLeft
 	cmp byte [ecx], 'r'
 	je handle_Shift_Right
+	cmp byte [ecx], 'l'
+	je handleShiftLeft
 	cmp byte [ecx], 'p'
 	je handle_print
 	cmp byte [ecx], 'd'
@@ -326,7 +335,7 @@ popad
 	; edx - holds the stack counter
 	; ebx - previous new node
 	;============================================================================================
-	handle_Double:
+handle_Double:
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that should be copy
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
@@ -347,61 +356,147 @@ popad
 	jmp .read_node
 	finish_copy:
 	inc dword [stack_index]
-	jmp get_operand
-
-handlePlus:
-	mov eax, [stack_index]			; eax has the stack index
-	dec eax 
-	mov ebx, dword [stack + 4*eax]   ; ebx has the pointer of last number
-	dec eax 					   	; inc the stack index
-	mov edx, dword [stack + 4*eax] ;edx has the second stack pointer
-	;mov cl,0
-	computing:
+	cmp dword [shift_left_flag], 0
+	je get_operand
+	jmp continue_sl_double
 	
-
-	mov al, 0
-	mov byte al, [edx] 	; add second to al
-	popf
-	adc byte al, [ebx]		; add first to al
-	
-	;add byte al, cl
-	;mov cl,0
-	;jnc no_carry
-	print_msg MSG, 4
-	;mov cl, 1
-	;no_carry:
-	;add byte al, cf 	; add carry****** need to be fixed
-	;push ecx
-	daa  				; BCD format
-	pushf
-	;pop ecx
-	mov byte [edx],al
-	cmp dword [ebx+1], 0 ; check if first number ended 
-	je check_carry
-	cmp dword [edx+1], 0 ; check if second number ended
-	je second_number_ended
-
-	mov dword ebx, [ebx+1]
-	mov dword edx, [edx+1]
-	jmp computing 
-
-	second_number_ended:
-	mov dword ebx, [ebx+1]
-	mov dword [edx+1], ebx
-
-	check_carry:
-	jnc update_the_stack
-
-
-	jmp check_carry
-
-	update_the_stack:
-	dec dword [stack_index]
-	;mov eax, [stack_index]
-	;mov byte [stack+ 4*eax], al    ; move the result to edx- second number in stack
-	jmp	get_operand
 
 	;============================================================================================
+	;HANDLE_PLUS
+	; eax - stack index
+	; ebx - pointer to last element in stack
+	; edx - pointer to second element in stack
+	; al  - the result of plus operation between two parallel nodes
+	;============================================================================================
+
+;**NEED TO BE ADDED**- FREE THE FIRST ELEMENT
+handlePlus:
+	mov eax, [stack_index]				; eax has the stack index
+	dec eax 							; dec the stack index to point the first element in stack
+	mov ebx, dword [stack + 4*eax]   	; ebx has the pointer of last number
+	dec eax 					   		; dec the stack index to point the second element in stack
+	mov edx, dword [stack + 4*eax] 		; edx has the second stack pointer
+	clc									; flag reset	
+	pushf
+	computing:
+	;mov dword [carry_flag], 0
+	mov al, 0 							; al initialization
+	mov byte al, [edx] 					; mov second element data to al 
+	popf
+	adc byte al, [ebx]					; add first element data to al 
+	daa  								; BCD format
+	pushf
+	
+	jnc continue_no_carry_to_save 		; check if there is a carry after adc operation
+	;inc dword [carry_flag] 				; in case there is carry- inc the flag
+	continue_no_carry_to_save:
+
+	mov byte [edx],al 					; update the result into second element data
+	cmp dword [ebx+1], 0 				; check if first element list ended 
+	je check_carry
+	cmp dword [edx+1], 0 				; check if second element list ended 	
+	je second_number_ended
+	mov dword ebx, [ebx+1] 				; move on to next node of first element list
+	mov dword edx, [edx+1]				; move on to next node of second element list
+	jmp computing 						; continue computing with next nodes
+
+	second_number_ended:				; in case second element list ended, but first one not
+	mov dword ebx, [ebx+1]				; update ebx (pointer of first element) to the its next node
+	mov dword [edx+1], ebx 				; last node of second element (edx) point to the remaining nodes of first element
+	
+	check_carry:						; check the carry after done computing
+	popf
+	jnc update_the_stack
+	
+	cmp dword [edx+1], 0
+	je add_carry
+	mov edx, [edx+1]
+	mov byte al, [edx] 					; mov second element data to al 
+	add byte al, 1					; add first element data to al 
+	daa  								; BCD format
+	pushf
+	mov byte [edx],al 					; update the result into second element data
+	jmp check_carry
+
+	add_carry:							; only in case there is carry
+	mov byte bl, 1 						; bl sotres the carry
+	create_new_node_in_eax bl			; create new node with bl as data
+
+
+	check_second_number_ended: 			; check if second element ended to add the new carry node 			
+	cmp dword [edx+1], 0 
+	je add_carry_node
+	mov dword edx, [edx+1] 				; in case the second element not ended- move on until its last node
+	jmp check_second_number_ended
+	add_carry_node:
+	mov dword [edx+1], eax  			; add last node of the carry to second element
+
+	;*MAYBE THERE IS A BETTER SOLUTION*
+	;*RESET CARRY FOR THE NEXT ADC*
+	; popf
+	; mov byte al, 0 						 
+	; adc byte al, 0						
+	; daa  								
+	; pushf
+
+	update_the_stack: 
+	;mov dword [carry_flag], 0			; reset the carry_flag 				
+	dec dword [stack_index] 			; after the operation- dec the stack_index (run over the first element in stack)
+	cmp dword [shift_left_flag], 0 		; check if the operation in shift left- first call
+	je get_operand
+	cmp dword [shift_left_flag], 1 		; check if the operation in shift left- second call
+	je continue_sl_first_plus
+	jmp continue_sl_plus
+
+	;============================================================================================
+	;HANDLE_SHIFT_LEFT
+	;esi - stack index
+	;edx - second element pointer in stack
+	;ebx - (bl) data zero 
+	;eax - new node with data 0 (bl) to reset the second element in stack
+	;============================================================================================
+
+;**NEED TO BE ADDED**- FREE THE SECOND ELEMENT
+handleShiftLeft:
+ inc dword [shift_left_flag] 			; inc shift_left_flag for first call
+ mov esi, [stack_index]					; esi has the stack index
+ dec esi  								; dec stack index twice to get the second element 								
+ dec esi 					   		 
+ mov edx, dword [stack + 4*esi] 		; edx has the second stack pointer
+
+ check_exponent:						; **NEED TO BE ADDED** (exponent should be one byte)
+ 
+ exponent_counter: 						; count the second element data (k)
+ cmp byte [edx], 0 						
+ je reset_second_element
+ inc dword [shift_left_counter] 		; inc the shift_left_counter (=k)
+ dec byte [edx]
+ jmp exponent_counter
+
+ reset_second_element: 					; reset second element in stack to node with 0 as data
+ mov byte bl, 0 						; bl stores 0 data
+ create_new_node_in_eax bl 				; create new node with bl as data
+ mov dword [stack + 4*esi], eax 		; update the second element in stack to the new node
+ jmp handlePlus  						; add the first element to zero- it moves the first number one element down in stack 
+ continue_sl_first_plus: 
+ inc dword [shift_left_flag] 			; inc shift_left_flag for second call
+
+ shift_left_compute: 					; computing operation loop
+ cmp dword [shift_left_counter], 0 		; loop for shift_left_counter (=k)
+ je end_shift_left 
+ jmp handle_Double 						; call handle_Double
+ continue_sl_double: 
+ jmp handlePlus 						; call handlePlus
+ continue_sl_plus:
+ dec dword [shift_left_counter] 		; dec shift_left_counter (=k)
+ jmp shift_left_compute 				; return loop
+
+ end_shift_left:
+ mov dword [shift_left_flag], 0 		; reset shift_left_flag
+ mov dword [shift_left_counter], 0 		; reset shift_left_counter
+ jmp get_operand
+
+;============================================================================================
 	; Handle_Print
 	; eax - carry flag
 	; ecx - pointer to node
