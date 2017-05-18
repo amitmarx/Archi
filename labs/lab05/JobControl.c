@@ -197,5 +197,6 @@ void runJobInForeground(job **job_list, job *j, int cont, struct termios *shell_
 **/
 
 void runJobInBackground(job *j, int cont) {
-
+    j->status=RUNNING;
+    kill(j->pgid, SIGCONT);
 }

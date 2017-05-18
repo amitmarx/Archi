@@ -68,6 +68,13 @@ int execute(cmdLine* cmd,job** job_list){
         runJobInForeground(job_list,jobToHandle,1,shell_tmodes,getpid());
         return 0;
     }
+    else if(strcmp(cmd->arguments[0],"bg")==0){
+        struct termios* shell_tmodes = malloc(sizeof(struct termios));
+        tcgetattr(STDIN_FILENO,shell_tmodes);
+        job* jobToHandle = findJobByIndex((*job_list),atoi(cmd->arguments[1]));
+        runJobInBackground(jobToHandle,1);
+        return 0;
+    }
     else if(strcmp(cmd->arguments[0],"quit")==0){
         return 1;
     }
