@@ -3,6 +3,9 @@ TEMPLATE: DB	"%.*s", 10, 0	; Format string
 MOVE_LINE:		DB	10, 0
 PRINT_INT_TEMPLATE: 		DB	"%d" ,0
 MSG: 	db "Read number",10,0
+EXPONENT_TOO_LARGE: 	DB 	"Error: exponent too large",10,0
+NOT_ENOGH_ARGS: 	DB 	"Error: Insufficient Number of Arguments on Stack",10,0
+STACK_OVEREFLOW: 	DB 	"Error: Operand Stack Overflow",10,0
 NEW_LINE: 	db 10,0 
 section .data
 	element_size equ 5
@@ -33,13 +36,48 @@ shift_left_counter
 
 
 section .text 
+%macro exponent_validation 0
+	pushad
+	mov edx,[stack_index] ; edx has the counter to next index
+	dec edx ; edx has the index that should be deleted
+	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
+	cmp dword [ecx+1],0
+	je %%endmacro
+	popad
+	print_msg EXPONENT_TOO_LARGE
+	jmp get_operand
+	%%endmacro:
+	popad
+%endmacro
+%macro args_amount_validation 1
+	pushad
+	mov edx,[stack_index] ; edx has the counter to next inde
+	cmp edx, %1
+	jge %%endmacro
+	popad
+	print_msg NOT_ENOGH_ARGS
+	jmp get_operand
+	%%endmacro:
+	popad
+%endmacro
+%macro stackoverflow_validation 0
+	pushad
+	mov edx,[stack_index] ; edx has the counter to next inde
+	cmp edx, 5
+	jl %%endmacro
+	popad
+	print_msg STACK_OVEREFLOW
+	jmp get_operand
+	%%endmacro:
+	popad
+%endmacro
 %macro pop_and_free 0
 	pushad
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that should be deleted
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
 	delete_from_node ecx
-	mov [stack_index], edx ; decrease stack_index by one
+	dec dword [stack_index] ; decrease stack_index by one
 	popad
 %endmacro
 %macro delete_from_node 1
@@ -78,11 +116,11 @@ popad
 	and	dl, 00001111b ; dl has now the second number
 	pop ecx
 %endmacro
-%macro print_msg 2
+%macro print_msg 1
 	pushad
 	push 	%1
 	call 	printf
-	add		esp, %2
+	add		esp, 4
 	popad
 %endmacro
 %macro print_int 1
@@ -179,7 +217,16 @@ popad
 	cmp byte [ecx], 'q'
 	je handleQuit
 	
+	;============================================================================================
+	;READ_NUMBER
+	; eax - store the current node (when created)
+	; ecx - pointer to input text (uses as itertable)
+	; edx - store the converted value of the data(after compute)
+	; ebx - store the previous node
+	; letter_counter - store hove many letters from input we have more to read
+	;============================================================================================
 	point_ecx_to_last_pos:
+	stackoverflow_validation
 	cmp byte [ecx], 0
 	je end_loop
 	inc dword [letter_counter]
@@ -189,15 +236,7 @@ popad
 	sub ecx,2
 
 	round_even letter_counter ; make counter even(round up), inorder to read two bytes each time
-	
-	;============================================================================================
-	;READ_NUMBER
-	; eax - store the current node (when created)
-	; ecx - pointer to input text (uses as itertable)
-	; edx - store the converted value of the data(after compute)
-	; ebx - store the previous node
-	; letter_counter - store hove many letters from input we have more to read
-	;============================================================================================
+
 	read_number:
 	mov edx,0
 	mov dx, [ecx]
@@ -244,6 +283,8 @@ popad
 	; edi - holds the amount needed to be shifted
 	;============================================================================================
 	handle_Shift_Right:
+	args_amount_validation 2
+	exponent_validation
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that to amount of shifts
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to amount of shifts
@@ -336,6 +377,8 @@ popad
 	; ebx - previous new node
 	;============================================================================================
 handle_Double:
+	stackoverflow_validation
+	args_amount_validation 1
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that should be copy
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
@@ -369,8 +412,8 @@ handle_Double:
 	; al  - the result of plus operation between two parallel nodes
 	;============================================================================================
 
-;**NEED TO BE ADDED**- FREE THE FIRST ELEMENT
 handlePlus:
+	args_amount_validation 2
 	mov eax, [stack_index]				; eax has the stack index
 	dec eax 							; dec the stack index to point the first element in stack
 	mov ebx, dword [stack + 4*eax]   	; ebx has the pointer of last number
@@ -459,6 +502,8 @@ handlePlus:
 
 ;**NEED TO BE ADDED**- FREE THE SECOND ELEMENT
 handleShiftLeft:
+args_amount_validation 2
+exponent_validation
  inc dword [shift_left_flag] 			; inc shift_left_flag for first call
 
  check_exponent:						; **NEED TO BE ADDED** (exponent should be one byte)
@@ -500,7 +545,6 @@ handleShiftLeft:
  inc dword [stack_index]
  jmp handlePlus  						; add the first element to zero- it moves the first number one element down in stack 
  continue_sl_first_plus: 
- print_msg MSG,4
  inc dword [shift_left_flag] 			; inc shift_left_flag for second call
 
  shift_left_compute: 					; computing operation loop
@@ -526,6 +570,7 @@ handleShiftLeft:
 	; ebx - pointer to previous node
 	;============================================================================================
 	handle_print:
+	args_amount_validation 1
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that should be printed
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
@@ -573,7 +618,7 @@ handleShiftLeft:
 	jmp .iterate_and_print
 	
 	.finish_print:
-	print_msg NEW_LINE, 4
+	print_msg NEW_LINE
 	pop_and_free
 	jmp get_operand
 
