@@ -6,7 +6,8 @@ MSG: 	db "Read number",10,0
 EXPONENT_TOO_LARGE: 	DB 	"Error: exponent too large",10,0
 NOT_ENOGH_ARGS: 	DB 	"Error: Insufficient Number of Arguments on Stack",10,0
 STACK_OVEREFLOW: 	DB 	"Error: Operand Stack Overflow",10,0
-NEW_LINE: 	db 10,0 
+NEW_LINE: 	db 10,0
+CALC: 	db "calc:",0 
 section .data
 	element_size equ 5
 	stack_index:	dd	0
@@ -148,13 +149,13 @@ popad
 	%%end_round_even
 	popad
 %endmacro
-	%macro handle_if_number 2
+	%macro handle_if_number 3
 	cmp dword [letter_counter], 0
-	je .finish_read_number
+	je %2
 	sub %1, '0'
 	%%endmacro:
 	dec dword [letter_counter]
-	jmp %2
+	jmp %3
 %endmacro
 	%macro print 1
 	push %1
@@ -194,6 +195,7 @@ popad
   	push ebp            ; Save the stack
     mov ebp, esp
 	get_operand:
+	print_msg CALC
 	mov ecx, input_buffer 
 	push dword [stdin] ; pointer to stdin
 	push ecx ; pointer to input		
@@ -235,15 +237,19 @@ popad
 	end_loop:
 	sub ecx,2
 
-	round_even letter_counter ; make counter even(round up), inorder to read two bytes each time
+	;round_even letter_counter ; make counter even(round up), inorder to read two bytes each time
 
 	read_number:
 	mov edx,0
-	mov dx, [ecx]
+	mov dx, [ecx]; if number is 14, dl=1,dh=4
 	
-	handle_if_number dl, .second_number  ; continue to compute or jump to end of loop
+	
+	handle_if_number dh, .finish_read_number ,.second_number  ; compute or skip computation
 	.second_number:
-	handle_if_number dh, .compute ; compute or skip computation
+	handle_if_number dl, .put_zero_in_second, .compute ; continue to compute or jump to end of loop
+	
+	.put_zero_in_second:
+	mov dl,0
 	
 	.compute:
 	shl dl, 4
