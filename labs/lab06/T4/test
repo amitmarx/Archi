@@ -1,0 +1,1 @@
+echo "started!";SECONDS=1;while ((SECONDS<40)); do : ;done;echo "finished!"
