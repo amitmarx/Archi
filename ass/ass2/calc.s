@@ -1,13 +1,14 @@
 section .rodata
-TEMPLATE: DB	"%.*s", 10, 0	; Format string
+TEMPLATE: DB	"%s", 0	; Format string
 MOVE_LINE:		DB	10, 0
 PRINT_INT_TEMPLATE: 		DB	"%d" ,0
 MSG: 	db "Read number",10,0
-EXPONENT_TOO_LARGE: 	DB 	"Error: exponent too large",10,0
-NOT_ENOGH_ARGS: 	DB 	"Error: Insufficient Number of Arguments on Stack",10,0
-STACK_OVEREFLOW: 	DB 	"Error: Operand Stack Overflow",10,0
+EXPONENT_TOO_LARGE: 	DB 	">>Error: exponent too large",10,0
+NOT_ENOGH_ARGS: 	DB 	">>Error: Insufficient Number of Arguments on Stack",10,0
+STACK_OVEREFLOW: 	DB 	">>Error: Operand Stack Overflow",10,0
 NEW_LINE: 	db 10,0
-CALC: 	db "calc:",0 
+CALC: 	db ">>calc:",0
+ARROWS: 	db ">>",0 
 section .data
 	element_size equ 5
 	stack_index:	dd	0
@@ -29,10 +30,14 @@ print_int_storage:
 
 carry_flag:
 	RESB	4
-shift_left_flag
+shift_left_flag:
  	RESB	4
-shift_left_counter
+shift_left_counter:
  	RESB	4
+handle_print_was_called:
+	RESB	1
+debug_flag:
+	RESB	1
 
 
 
@@ -119,19 +124,37 @@ popad
 %endmacro
 %macro print_msg 1
 	pushad
-	push 	%1
-	call 	printf
-	add		esp, 4
+	push %1
+	push TEMPLATE
+	push dword [stdout]
+	call fprintf
+	add		esp, 12
 	popad
 %endmacro
 %macro print_int 1
+
 	pushad
 	mov eax, %1
 	push 	dword [eax]
-	push 	PRINT_INT_TEMPLATE
-	call 	printf
-	add		esp, 8
+	push PRINT_INT_TEMPLATE
+	cmp byte [handle_print_was_called],0
+	je %%push_stderr
+	push dword [stdout]
+	jmp %%continue_print_int
+	%%push_stderr:
+	push dword [stderr]
+	%%continue_print_int:
+	call fprintf
+	add		esp, 12
 	popad
+
+	; 	pushad
+	; mov eax, %1
+	; push 	dword [eax]
+	; push 	PRINT_INT_TEMPLATE
+	; call 	printf
+	; add		esp, 8
+	; popad
 %endmacro
 
 
@@ -181,6 +204,21 @@ popad
 	mov dword [eax+1], 0 ; initialize the next to 0
 	
 %endmacro
+%macro set_debug_state 2
+pushad
+cmp dword %1,1
+je get_operand
+cmp byte [%2], '-'
+jne get_operand
+cmp byte [%2+1],'d'
+jne get_operand
+cmp byte [%2+2],0
+jne get_operand
+mov byte [debug_flag],1
+popad
+%endmacro
+
+
 	 extern printf 
      extern fprintf 
      extern malloc 
@@ -191,10 +229,17 @@ popad
      extern stdout
 	 global main
  main:
- 	
-  	push ebp            ; Save the stack
-    mov ebp, esp
+    push    ebp             ; Save caller state
+    mov     ebp, esp
+    sub     esp, 4          ; Leave space for local var on stack
+    mov     eax, [ebp+8]    ; argc        
+    mov     ebx, [ebp+12]   ; argv
+	mov ebx, [ebx+4]
+	mov byte [debug_flag], 0
+	set_debug_state eax, ebx
+	
 	get_operand:
+	mov byte [handle_print_was_called], 0
 	print_msg CALC
 	mov ecx, input_buffer 
 	push dword [stdin] ; pointer to stdin
@@ -278,6 +323,8 @@ popad
 
 	.finish_read_number:
 	inc dword [stack_index]
+	cmp byte [debug_flag],1
+	je handle_print_debug
 	jmp get_operand
 
 	;============================================================================================
@@ -291,6 +338,7 @@ popad
 	handle_Shift_Right:
 	args_amount_validation 2
 	exponent_validation
+	inc dword [operations_counter]
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that to amount of shifts
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to amount of shifts
@@ -372,6 +420,8 @@ popad
 	jmp .make_shift
 
 	.finish_shift_right:
+	cmp byte [debug_flag],1
+	je handle_print_debug
 	jmp get_operand
 
 
@@ -406,9 +456,11 @@ handle_Double:
 	finish_copy:
 	inc dword [stack_index]
 	cmp dword [shift_left_flag], 0
-	je get_operand
-	jmp continue_sl_double
-	
+	jne continue_sl_double
+	inc dword [operations_counter]
+	cmp byte [debug_flag],1
+	je handle_print_debug
+	jmp get_operand
 
 	;============================================================================================
 	;HANDLE_PLUS
@@ -493,10 +545,15 @@ handlePlus:
 	;dec dword [stack_indexx] 			; after the operation- dec the stack_index (run over the first element in stack)
 	pop_and_free
 	cmp dword [shift_left_flag], 0 		; check if the operation in shift left- first call
-	je get_operand
+	je .finish_handle_plus
 	cmp dword [shift_left_flag], 1 		; check if the operation in shift left- second call
 	je continue_sl_first_plus
 	jmp continue_sl_plus
+	.finish_handle_plus:
+	inc dword [operations_counter]
+	cmp byte [debug_flag],1
+	je handle_print_debug
+	jmp get_operand
 
 	;============================================================================================
 	;HANDLE_SHIFT_LEFT
@@ -566,6 +623,9 @@ exponent_validation
  end_shift_left:
  mov dword [shift_left_flag], 0 		; reset shift_left_flag
  mov dword [shift_left_counter], 0 		; reset shift_left_counter
+ inc dword [operations_counter]
+ cmp byte [debug_flag],1
+ je handle_print_debug
  jmp get_operand
 
 ;============================================================================================
@@ -577,6 +637,10 @@ exponent_validation
 	;============================================================================================
 	handle_print:
 	args_amount_validation 1
+	inc dword [operations_counter]
+	print_msg ARROWS
+	mov byte [handle_print_was_called],1
+	handle_print_debug:
 	mov edx,[stack_index] ; edx has the counter to next index
 	dec edx ; edx has the index that should be printed
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to first node in stack
@@ -598,7 +662,7 @@ exponent_validation
 	je .finish_print
 	expand_number_to_edx byte [ebx] ; will put for [ebx]= 0001|0010  :  dl=2, dh=1 
 
-	.handle_zero_at_beggining
+	;handle_zero_at_beggining
 	cmp esi,0 ; a flage telling if number has already started
 	jne .print_values_from_first
 	cmp dh,0 
@@ -625,10 +689,15 @@ exponent_validation
 	
 	.finish_print:
 	print_msg NEW_LINE
+	cmp byte [handle_print_was_called],0
+	je get_operand
 	pop_and_free
+	mov byte [handle_print_was_called],0
 	jmp get_operand
 
 	handleQuit:
+	mov byte [handle_print_was_called],1
+	print_int operations_counter
 	.cleanup:
     	mov esp, ebp
     	pop ebp
