@@ -282,8 +282,6 @@ popad
 	end_loop:
 	sub ecx,2
 
-	;round_even letter_counter ; make counter even(round up), inorder to read two bytes each time
-
 	read_number:
 	mov edx,0
 	mov dx, [ecx]; if number is 14, dl=1,dh=4
@@ -343,7 +341,6 @@ popad
 	dec edx ; edx has the index that to amount of shifts
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to amount of shifts
 	cmp dword [ecx+1],0
-	;;;;;;;;;;;;TODO:WRITE AN ERROR;;;;;;;;;;;;;;
 	jne get_operand
 	mov al, [ecx] ; al has the amount in BCD
 	expand_number_to_edx al
@@ -532,17 +529,7 @@ handlePlus:
 	add_carry_node:
 	mov dword [edx+1], eax  			; add last node of the carry to second element
 
-	;*MAYBE THERE IS A BETTER SOLUTION*
-	;*RESET CARRY FOR THE NEXT ADC*
-	; popf
-	; mov byte al, 0 						 
-	; adc byte al, 0						
-	; daa  								
-	; pushf
-
 	update_the_stack: 
-	;mov dword [carry_flag], 0			; reset the carry_flag 				
-	;dec dword [stack_indexx] 			; after the operation- dec the stack_index (run over the first element in stack)
 	pop_and_free
 	cmp dword [shift_left_flag], 0 		; check if the operation in shift left- first call
 	je .finish_handle_plus
@@ -563,7 +550,6 @@ handlePlus:
 	;eax - new node with data 0 (bl) to reset the second element in stack
 	;============================================================================================
 
-;**NEED TO BE ADDED**- FREE THE SECOND ELEMENT
 handleShiftLeft:
 args_amount_validation 2
 exponent_validation
@@ -577,7 +563,6 @@ exponent_validation
 	dec edx ; edx has the index that to amount of shifts
 	mov dword ecx, [stack+ edx * 4] ; ecx has the pointer to amount of shifts
 	cmp dword [ecx+1],0
-	;;;;;;;;;;;;TODO:WRITE AN ERROR;;;;;;;;;;;;;;
 	jne get_operand
 	mov al, [ecx] ; al has the amount in BCD
 	expand_number_to_edx al
@@ -591,13 +576,6 @@ exponent_validation
 	pop_and_free
 	mov dword [shift_left_counter],edi
 	popad
-
- 
-;  cmp byte [edx], 0 						
-;  je reset_second_element
-;  inc dword [shift_left_counter] 		; inc the shift_left_counter (=k)
-;  dec byte [edx]
-;  jmp exponent_counter
 
  reset_second_element: 					; reset second element in stack to node with 0 as data
  mov byte bl, 0 						; bl stores 0 data

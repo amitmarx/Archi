@@ -1,9 +1,9 @@
 
 # All Targets
-all: calc1
+all: calc
 
-calc1: calc.o
-	gcc -m32 -Wall -g calc.o -o calc1
+calc: calc.o
+	gcc -m32 -g calc.o -o calc
 
 # Depends on the source and header files
 calc.o: calc.s
@@ -14,4 +14,4 @@ calc.o: calc.s
 
 #Clean the build directory
 clean: 
-	rm -f *.o calc1
+	rm -f *.o calc

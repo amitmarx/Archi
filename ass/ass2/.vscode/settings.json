@@ -6,6 +6,7 @@
                 "match": ".*",
                 "cmd": "cp -r ~/dev/archi/ass/ass2/* ~/dev/lab_mount/archi/ass/ass2"
             }
-        ]
+        ],
+        "editor.fontSize": 14
     }
 }
