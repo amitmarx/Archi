@@ -108,6 +108,15 @@ int execute(cmdLine* cmd,job** job_list){
     
 }
 void handleIOStreams(cmdLine *cmd, int pipe[] ) {
+    if(cmd->next!=NULL){
+        close(STDOUT_FILENO);
+        dup(pipe[1]);
+    }
+    else{
+        close(pipe[1]);
+        syscall(OPEN, stdout, O_RDWR );
+    }
+
     if(cmd->inputRedirect!=NULL){
         close(STDIN_FILENO);
         syscall(OPEN, cmd->inputRedirect, O_RDWR );
@@ -115,10 +124,6 @@ void handleIOStreams(cmdLine *cmd, int pipe[] ) {
     if(cmd->outputRedirect!=NULL){
         close(STDOUT_FILENO);
         syscall(OPEN, cmd->outputRedirect, O_RDWR );
-    }
-    if(cmd->next!=NULL){
-        close(STDOUT_FILENO);
-        dup(pipe[1]);
     }
 }
 
@@ -129,6 +134,7 @@ void executeCommand(cmdLine *cmd, int pipe[]) {
     if(pid==0) {
         registerDefaultSignals();
         handleIOStreams(cmd, pipe);
+        fprintf(stdout,"got here with command:%s\n",cmd->arguments[0]);
         int result = execvp(cmd->arguments[0], cmd->arguments);
         if (result < 0) {
             perror("execv() error");
