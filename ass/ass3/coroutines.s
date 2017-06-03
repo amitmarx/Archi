@@ -24,12 +24,12 @@ section .text
         ;; other registers will be visible to co-routine after "start_co"
 init_co:
         push eax                ; save eax (on caller's stack)
-		push edx
-		mov edx,0
-		mov eax,stacksz
+	push edx
+	mov edx,0
+	mov eax,stacksz
         imul ebx			    ; eax = co-routine's stack offset in stacks
         pop edx
-		add eax, stacks + stacksz ; eax = top of (empty) co-routine's stack
+	add eax, stacks + stacksz ; eax = top of (empty) co-routine's stack
         mov [cors + ebx*4], eax ; store co-routine's stack top
         pop eax                 ; restore eax (from caller's stack)
 
