@@ -15,3 +15,5 @@ calc.o: calc.s
 #Clean the build directory
 clean: 
 	rm -f *.o calc
+
+	
