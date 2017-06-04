@@ -6,7 +6,8 @@
 
 maxcors:        equ 100*100+2         ; maximum number of co-routines
 stacksz:        equ 16*1024     ; per-co-routine stack size
-
+schedulerId: equ 10001
+printerId: equ 10002
 
 section .bss
 

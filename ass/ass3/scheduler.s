@@ -17,7 +17,6 @@ section .text
 %endmacro
 
 scheduler:
-        print_msg MSG
         mov ebx, 1
 .next:
         call resume             ; resume printer

@@ -2,8 +2,8 @@
 # All Targets
 all: ass3
 
-ass3: ass3.o printer.o scheduler.o coroutines.o
-	gcc -m32 -Wall -g -nostartfiles ass3.o printer.o scheduler.o coroutines.o -o ass3
+ass3: ass3.o printer.o scheduler.o coroutines.o cell.o
+	gcc -m32 -Wall -g -nostartfiles ass3.o printer.o scheduler.o coroutines.o cell.o -o ass3
 
 # Depends on the source and header files
 ass3.o: ass3.s
@@ -17,6 +17,8 @@ scheduler.o: scheduler.s
 
 coroutines.o: coroutines.s
 	nasm -f elf coroutines.s -o coroutines.o
+cell.o: cell.c
+	gcc -g -Wall -m32 -ansi -c -o cell.o cell.c
 
 #tell make that "clean" is not a file name!
 .PHONY: clean
