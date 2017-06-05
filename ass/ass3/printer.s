@@ -39,3 +39,6 @@ printer:
 
         xor ebx, ebx
         call resume             ; resume scheduler
+        ;;;;need to remove!!!!!;;;;;;;
+        print NEW_LINE,1
+        jmp printer

@@ -1,9 +1,16 @@
+printerId: equ 1
         global scheduler
-        extern resume, end_co, stdout,fprintf
+        extern WorldLength,WorldWidth,resume, end_co, stdout,fprintf
 
 section .data
 MSG: 	db "SOME MESSAGE",10,0
 TEMPLATE: DB	"%s", 0	; Format string
+
+section .bss
+BOARD_SIZE:
+        RESB	4
+K:
+        RESB	4
 
 section .text
 %macro print_msg 1
@@ -17,9 +24,43 @@ section .text
 %endmacro
 
 scheduler:
-        mov ebx, 1
-.next:
-        call resume             ; resume printer
-        loop .next
+        ;;;;;;;;;;;;;;;;;;Calc BOARD_SIZE;;;;;;;;;;;;;;;;;;
+        mov ebx, dword [WorldLength]
+        mov eax, dword [WorldWidth]
+        mul ebx
+        mov dword[BOARD_SIZE], eax
 
-        call end_co             ; stop co-routines
+        add dword[BOARD_SIZE],2 ; we inc the board size because we start from 2 and not 0
+        pop ecx ; will store 'T'
+        pop eax ; will store 'K'
+        shl ecx,1 ; double in order to support half-generation
+        shl eax,1 ; double in order to support half-generation
+        mov dword [K], eax
+        mov ebx,2 ; first cell to run
+        .run_generation:
+        cmp ebx,[BOARD_SIZE]
+        je .finish_generation
+        call resume
+        inc ebx
+        jmp .run_generation
+        .finish_generation:
+        dec eax
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;;;;;;;;;;;;;;;;;;;Need to fix k number of resumes;;;;;;;
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        cmp eax,0 ; check if we need to print
+        jne .skip_printing
+        push ebx
+        mov ebx, printerId
+        call resume
+        pop ebx
+        mov eax,[K]
+        .skip_printing
+
+        mov ebx, 2
+        loop .run_generation
+        ;;;;one last time slice to printer
+        mov ebx, printerId
+        call resume
+        ;;;;finish program
+        call end_co

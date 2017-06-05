@@ -1,12 +1,12 @@
         global _start, STATE,WorldLength,WorldWidth
         extern init_co, start_co, resume,cell
-        extern scheduler, printer, stdout,fprintf
+        extern scheduler, printer, stdout,fprintf, init_scheduler
 
 
         ;; /usr/include/asm/unistd_32.h
 sys_exit:       equ   1
-schedulerId: equ 10001
-printerId: equ 10002
+schedulerId: equ 0
+printerId: equ 1
 
 
 section .data
@@ -31,7 +31,7 @@ T:
 K:
 	RESB	4
 STATE:
-        RESB 10000
+        RESB 10002
 section .text
 %macro print_msg 1
 	pushad
@@ -79,7 +79,7 @@ section .text
 %macro put_row_in_eax_column_in_ecx 1
 push edx
         mov eax, %1
-        mov ebx, 10
+        mov ebx, [WorldWidth]
         xor edx,edx
         idiv ebx
         mov ecx, edx
@@ -91,7 +91,7 @@ _start:
         mov dword [WorldLength],4
         mov dword [WorldWidth],6
         mov dword [T],10
-        mov dword [K],3
+        mov dword [K],1
         ;============================================================================================
         ;calculate BOARD_SIZE (WorldLength*WorldWidth)
         ;============================================================================================
@@ -145,8 +145,12 @@ _start:
         mov ecx,[BOARD_SIZE]
         mov esi,0 ; offset
         .convert_space_to_zeros:
+        cmp byte [STATE +esi],'9'
+        jg .set_zero
         cmp byte [STATE +esi],'1'
-        je .continue_convert_space_to_zeros
+        jl .set_zero
+        jmp .continue_convert_space_to_zeros
+        .set_zero:
         mov byte [STATE+esi],'0'
         .continue_convert_space_to_zeros:
         inc esi
@@ -162,22 +166,27 @@ _start:
         push ecx
         put_row_in_eax_column_in_ecx esi
         mov ebx , esi ; set id to be the counter
+        add ebx,2 ; inc the counter because scheduler in in position 0 and printer 1
         mov edx, cell_routine
         call init_co
         pop ecx
+        inc esi
         loop .initialize_cells
         ;============================================================================================
         ;Initialize scheduler and printer
         ;============================================================================================
         mov ebx, schedulerId            
         mov edx, scheduler
-        call init_co            ; initialize scheduler state
+        mov dword eax,[K]
+        mov dword ecx,[T]
+        call init_scheduler            ; initialize scheduler state
 
         mov ebx,printerId           
         mov edx, printer
         call init_co            ; initialize printer state
 
-
+        mov ebx, schedulerId
+        call start_co
         ;xor ebx, ebx            ; starting co-routine = scheduler
         ;call start_co           ; start co-routines
 
@@ -197,10 +206,11 @@ _start:
         ;============================================================================================
         cell_routine: 
         mov esi,0
-
+        sub ebx,2
         .execute:
         cmp esi,0
         je .call_cell_func
+        pop edi
         mov [STATE+ebx], edi
         jmp .call_sceduler
         .call_cell_func
@@ -210,6 +220,7 @@ _start:
         mov edi,eax 
         pop ecx
         pop eax
+        push edi
         .call_sceduler:
         xor esi,1; toggle esi
         push ebx

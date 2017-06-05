@@ -1,29 +1,13 @@
 #include <stdio.h>
 
-/*int WorldWidth = 6;
-int WoldLength = 4;
-char STATE[] = {'0', '0', '1', '0', '0', '1', '1', '1', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '1', '1', '1',
-                '0', '0', '1'};
-*/
+
 extern int WorldWidth; 
 extern int WorldLength;
-extern char * STATE;
+extern char STATE[];
 char cell(int x, int y);
 int getSingleIndex(int x, int y);
 void findNeighbors(int x, int y, int *result);
-/*
-int main(int argc, char **argv) {
-    int y,x;
-    for(y=0;y<4;y++) {
-        for (x = 0; x < 6; x++) {
-            char c = cell(x, y);
-            fprintf(stdout, "%s ", &c);
-        }
-        fprintf(stdout, "\n");
-    }
 
-}
-*/
 char cell(int x, int y) {
     int neighbors[8];
     findNeighbors(x, y, neighbors);

@@ -1,13 +1,12 @@
 ;;; This is a simplified co-routines implementation:
 ;;; CORS contains just stack tops, and we always work
 ;;; with co-routine indexes.
-        global init_co, start_co, end_co, resume
+        global init_co, start_co, end_co, resume,init_scheduler
+        extern T,K
 
 
 maxcors:        equ 100*100+2         ; maximum number of co-routines
 stacksz:        equ 16*1024     ; per-co-routine stack size
-schedulerId: equ 10001
-printerId: equ 10002
 
 section .bss
 
@@ -43,6 +42,31 @@ init_co:
         mov [cors + ebx*4], esp ; update co-routine's stack top
 
         mov esp, [tmp]          ; restore caller's stack top
+        ret                     ; return to caller
+        
+        ;eax will use to store t, and ecx will store k
+        init_scheduler:
+        push eax                ; save eax (on caller's stack)
+	push edx
+	mov edx,0
+	mov eax,stacksz
+        imul ebx			    ; eax = co-routine's stack offset in stacks
+        pop edx
+	add eax, stacks + stacksz ; eax = top of (empty) co-routine's stack
+        mov [cors + ebx*4], eax ; store co-routine's stack top
+        pop eax                 ; restore eax (from caller's stack)
+
+        mov [tmp], esp          ; save caller's stack top
+        mov esp, [cors + ebx*4] ; esp = co-routine's stack top
+        push eax ;push k
+        push ecx ; push t
+        push edx                ; save return address to co-routine stack
+        pushf                   ; save flags
+        pusha                   ; save all registers
+        mov [cors + ebx*4], esp ; update co-routine's stack top
+
+        mov esp, [tmp]          ; restore caller's stack top
+         
         ret                     ; return to caller
 
         ;; ebx = co-routine index to start
