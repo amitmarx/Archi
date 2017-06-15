@@ -1,0 +1,109 @@
+#! /bin/bash
+
+clear
+reset
+
+
+points_per_test=2
+points_per_crash=1
+input_count=20
+test_count=40
+
+failed_tests=0
+segfaults=0
+
+exec_name="ass3"
+loggerout="tester_script.log"
+
+# Write $1 to stdout and a log file
+log ()
+{
+	echo $1 | tee -a $loggerout
+}
+
+echo "" > $loggerout
+
+# Execute test $1 and store the output in $2.
+# Processes the output to make it easily comparable 
+run_game_of_life ()
+{ 
+	
+	log "Executing test (storing output in $2)..."
+
+	./$exec_name `cat ./tests | grep "Test $1" | head -n1 | cut -d':' -f2`  > $2_temp
+	#rm $2_temp
+	
+	if [[ $? -eq 139 ]]; then
+		log "Segfault/Timeout on test #$1"
+		segfaults=$((segfaults+1))
+		echo "" > exec_failed
+	else
+		cat $2_temp | sed 's/[ ]/0/g' | tr  '\n' '_' | sed 's/[^0-9\._]*//g' > $2
+	fi
+	log "Execution completed."
+	log ""
+	
+}
+
+# Search for the expected output from $1 in the processed output in $2
+compare_output ()
+{
+	log "Expected (processed) output regex ($1):"
+	log `cat $1`
+	
+	filtered_output=$(cat $2 | grep -oh `cat $1`)
+	if [ "$filtered_output" == "" ]; then
+		log "************!!!Failure!!!************"
+		failed_tests=$((failed_tests + 1))
+	else
+		log "***************Success***************"
+	fi
+}
+
+# Execute test # $1_$2.
+# Note: Test numbers format is <input_index>_<expected_output_index>
+exec_test ()
+{
+	log "Test $1 - $(cat ./tests | grep "Test $1" | head -n1 | cut -d':' -f1 | cut -d'-' -f2):"
+	
+	run_game_of_life $1 $1_output
+	if [[ ! -f "exec_failed" ]]; then
+		log "Actual (processed) output:"
+		log `cat $1_output`
+		log "---------------------------------------"
+		
+		for ((res_idx=1; res_idx<=2; res_idx++))
+		do
+			compare_output "$1"_"$res_idx"_regex_output.cells $1_output
+		done
+	else
+		failed_tests=$((failed_tests + 1))
+		failed_tests=$((failed_tests + 1))
+		
+		rm exec_failed
+	fi
+
+}
+
+
+log "Compiling..."
+make
+
+if [ ! -f "$exec_name" ]; then
+	make -f tester.make
+	if [ ! -f "$exec_name" ]; then	
+		log "Compilation failed!"
+	fi
+fi
+
+for ((test_idx=1; test_idx<=20 ; test_idx++))
+do
+	exec_test $test_idx
+
+done
+
+
+score=$((100 - $points_per_crash*$segfaults - $points_per_test*$failed_tests))
+log "Failed Tests = $failed_tests"
+log "Segmentation Faults = $segfaults"
+log "Total = $score"

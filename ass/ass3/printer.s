@@ -26,19 +26,13 @@ section .text
 printer:
         mov esi,STATE
         mov ecx, [WorldLength]
-        .print_row
-        push ecx
-        mov ecx,[WorldWidth]
-        .print_cell
-        print esi,1
-        inc esi
-        loop .print_cell
+        .print_row:
+        print esi,[WorldWidth]
+        add esi, [WorldWidth]
         print NEW_LINE,1
-        pop ecx
         loop .print_row
+
 
         xor ebx, ebx
         call resume             ; resume scheduler
-        ;;;;need to remove!!!!!;;;;;;;
-        print NEW_LINE,1
         jmp printer
