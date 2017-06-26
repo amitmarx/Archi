@@ -10,7 +10,7 @@
 
 char * process;
 
-void executeCommand(cmdLine *cmd,int pipe[]);
+void executeCommand(cmdLine *cmd,int pipeArray[]);
 
 void sig_handler(int signo)
 {
@@ -127,28 +127,37 @@ void handleIOStreams(cmdLine *cmd, int pipe[] ) {
     }
 }
 
-void executeCommand(cmdLine *cmd, int pipe[]) {
-    if(cmd==NULL)
-        exit(0);
+void executeCommand(cmdLine *cmd, int pipeArray[]) {
+    if(cmd==NULL) {
+        close(pipeArray[1]);
+        int status;
+        while(waitpid(-1,&status,WUNTRACED)&& WTERMSIG(status));
+    }
     int pid = fork();
     if(pid==0) {
         registerDefaultSignals();
-        handleIOStreams(cmd, pipe);
-        fprintf(stdout,"got here with command:%s\n",cmd->arguments[0]);
+        handleIOStreams(cmd, pipeArray);
+        fprintf(stdout,"pid:%d pgId:%d\n",getpid(),getpgid(getpid()));
+        fflush(stdout);
         int result = execvp(cmd->arguments[0], cmd->arguments);
         if (result < 0) {
             perror("execv() error");
         }
 
-        close(pipe[1]);
         free(cmd);
     }
     else{
+        fprintf(stdout,"finished: pid:%d pgId:%d\n",getpid(),getpgid(getpid()));
+        close(pipeArray[1]); //stop writing in father pipe
+        int newPipe[2]; //new Pipe for child communication
+        pipe(newPipe);
         close(STDIN_FILENO);
-        dup(pipe[0]);
+        dup(pipeArray[0]);
         setpgid(pid,getpid());
-        executeCommand(cmd->next,pipe);
+        executeCommand(cmd->next,newPipe);
     }
+
+    fflush(stdout);
     exit(0);
 }
 
@@ -164,6 +173,7 @@ int main(int argc, char **argv){
         printCwd();
         cmdLine *cmd = readCommand();
         shouldExit=execute(cmd,job_list);
+        fflush(stdout);
     }
     freeJobList(job_list);
 }

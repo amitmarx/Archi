@@ -1,0 +1,28 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+    "emeraldwalk.runonsave": {
+    "commands": [
+        //{
+        //     "match": ".*",
+        //     "isAsync": true,
+        //     "cmd": "echo 'I run for all files.'"
+        // },
+        // {
+        //     "match": "\\.txt$",
+        //     "cmd": "echo 'I am a .txt file ${file}.'"
+        // },
+        // {
+        //     "match": "\\.js$",
+        //     "cmd": "echo 'I am a .js file ${file}.'"
+        // },
+        // {
+        //     "match": ".*",
+        //     "cmd": "echo 'I am ${env.USERNAME}.'"
+        // }
+        {
+        "match": ".*",
+        "cmd":"mkdir /Users/amitm/dev/archi/labs/lab04/T2/T2c/bla"
+        }
+    ]
+}
+}

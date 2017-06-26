@@ -164,7 +164,8 @@ void updateJobList(job **job_list, int remove_done_jobs) {
 
 void runJobInForeground(job **job_list, job *j, int cont, struct termios *shell_tmodes, pid_t shell_pgid) {
     int status;
-    int result = waitpid(j->pgid, &status, WNOHANG);
+    int result;
+    while ((result = waitpid(j->pgid,&status,WNOHANG))>0);
     if (result == -1) {
         j->status = DONE;
         printf("[%d]\t %s \t\t %s", j->idx, statusToStr(j->status), j->cmd);
@@ -178,10 +179,12 @@ void runJobInForeground(job **job_list, job *j, int cont, struct termios *shell_
     kill(j->pgid, SIGCONT);
 
     status=-1;
+
     waitpid(j->pgid, &status, WUNTRACED);
     if (WIFSTOPPED(status)) {
+        fprintf(stdout,"got here!!!!!");
         j->status = SUSPENDED;
-    } else if(WTERMSIG(status)) {
+    } else if(WIFEXITED(status)) {
         j->status = DONE;
     }
     tcsetpgrp(STDIN_FILENO, shell_pgid);
